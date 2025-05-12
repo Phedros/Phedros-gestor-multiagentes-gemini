@@ -1,0 +1,219 @@
+/* frontend/src/App.css */
+/* ... (estilos anteriores que quieras mantener como App, App-header, etc.) ... */
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #f4f7f6; /* Un fondo ligeramente gris para la página */
+  color: #333;
+  margin: 0;
+  padding: 0;
+}
+
+.App {
+  max-width: 1200px; /* Aumentar ancho para dos columnas */
+  margin: 20px auto;
+  padding: 20px;
+}
+
+.App-header {
+  background-color: #282c34;
+  padding: 20px;
+  color: white;
+  margin-bottom: 30px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.App-header h1 {
+  margin-top: 0;
+}
+
+.main-content-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); /* Layout responsive de columnas */
+  gap: 30px; /* Espacio entre las tarjetas */
+}
+
+.card {
+  background-color: #ffffff;
+  padding: 25px;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  display: flex;
+  flex-direction: column;
+}
+
+.card h2 {
+  margin-top: 0;
+  color: #282c34;
+  border-bottom: 2px solid #61dafb; /* Línea de acento con color React */
+  padding-bottom: 10px;
+  margin-bottom: 20px;
+}
+
+.agent-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  flex-grow: 1; /* Para que el formulario ocupe el espacio si la tarjeta es más alta */
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+}
+
+.form-group label {
+  margin-bottom: 6px;
+  font-weight: bold;
+  color: #333;
+  font-size: 0.9rem;
+}
+
+.form-group input[type="text"],
+.form-group textarea,
+.form-group select {
+  padding: 12px;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+  font-size: 1rem;
+  box-sizing: border-box; /* Importante para que el padding no aumente el tamaño total */
+}
+
+.form-group textarea {
+  min-height: 80px;
+  resize: vertical;
+}
+
+.form-group input[type="text"]:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+  border-color: #61dafb;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(97, 218, 251, 0.3);
+}
+
+.form-group select {
+    background-color: white; /* Estilo para el select */
+}
+
+.form-group input[disabled],
+.form-group textarea[disabled],
+.form-group select[disabled] {
+    background-color: #e9ecef; /* Color para campos deshabilitados */
+    cursor: not-allowed;
+}
+
+
+button[type="submit"] {
+  background-color: #61dafb;
+  color: #20232a;
+  border: none;
+  padding: 12px 20px;
+  font-size: 1rem;
+  font-weight: bold;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.2s ease-in-out, transform 0.1s ease;
+  margin-top: 10px; /* Espacio antes del botón */
+}
+
+button[type="submit"]:hover:not(:disabled) {
+  background-color: #21a1f1;
+  transform: translateY(-1px); /* Ligero efecto al pasar el mouse */
+}
+
+button[type="submit"]:disabled {
+  background-color: #b0bec5; /* Gris más claro para deshabilitado */
+  color: #6c757d;
+  cursor: not-allowed;
+}
+
+.loading-message {
+  margin-top: 15px;
+  font-style: italic;
+  color: #555;
+  text-align: center;
+}
+
+.error-message {
+  margin-top: 15px;
+  color: #b71c1c; /* Rojo oscuro para errores */
+  background-color: #ffcdd2; /* Fondo rojo claro */
+  border: 1px solid #ef9a9a;
+  padding: 12px;
+  border-radius: 5px;
+  font-size: 0.9rem;
+}
+
+.success-message {
+  margin-top: 15px;
+  color: #1b5e20; /* Verde oscuro para éxito */
+  background-color: #c8e6c9; /* Fondo verde claro */
+  border: 1px solid #a5d6a7;
+  padding: 12px;
+  border-radius: 5px;
+  font-size: 0.9rem;
+}
+
+.agent-response-container {
+  margin-top: 25px;
+  padding: 20px;
+  background-color: #f8f9fa;
+  border-radius: 5px;
+  text-align: left;
+  border: 1px solid #dee2e6;
+}
+
+.agent-response-container h3 {
+  margin-top: 0;
+  color: #333;
+  border-bottom: 1px solid #ccc;
+  padding-bottom: 8px;
+  margin-bottom: 15px;
+}
+
+.agent-response-text {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+  background-color: #fff;
+  padding: 15px;
+  border-radius: 4px;
+  border: 1px solid #ced4da;
+  max-height: 400px;
+  overflow-y: auto;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.used-prompt-details {
+    margin-bottom: 15px;
+    background-color: #eef;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+}
+.used-prompt-details summary {
+    cursor: pointer;
+    font-weight: bold;
+    color: #335;
+}
+.system-prompt-display {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-family: 'SFMono-Regular', Consolas, Menlo, monospace;
+    background-color: #f9f9f9;
+    padding: 8px;
+    border-radius: 3px;
+    border: 1px solid #ddd;
+    margin-top: 5px;
+    font-size: 0.8rem;
+    max-height: 150px;
+    overflow-y: auto;
+}
