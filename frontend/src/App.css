@@ -1,20 +1,19 @@
 /* frontend/src/App.css */
-/* ... (estilos anteriores que quieras mantener como App, App-header, etc.) ... */
-
+/* Estilos generales y de la aplicación */
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #f4f7f6; /* Un fondo ligeramente gris para la página */
+  background-color: #f4f7f6; /* Fondo ligeramente gris */
   color: #333;
   margin: 0;
   padding: 0;
 }
 
 .App {
-  max-width: 1200px; /* Aumentar ancho para dos columnas */
+  max-width: 1200px; /* Ancho máximo para dos columnas */
   margin: 20px auto;
   padding: 20px;
 }
@@ -32,12 +31,29 @@ body {
   margin-top: 0;
 }
 
-.main-content-grid {
+/* Grid principal para configurar dos columnas */
+.main-layout {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); /* Layout responsive de columnas */
-  gap: 30px; /* Espacio entre las tarjetas */
+  grid-template-columns: 1fr 1fr; /* Dos columnas iguales */
+  gap: 30px; /* Espacio entre columnas */
 }
 
+/* Columnas internas: configuración y llamada */
+.config-column,
+.invoke-column {
+  display: flex;
+  flex-direction: column;
+  gap: 30px; /* Espacio entre tarjetas en cada columna */
+}
+
+/* Contenido principal en grid responsivo */
+.main-content-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 30px;
+}
+
+/* Tarjetas genéricas */
 .card {
   background-color: #ffffff;
   padding: 25px;
@@ -50,16 +66,17 @@ body {
 .card h2 {
   margin-top: 0;
   color: #282c34;
-  border-bottom: 2px solid #61dafb; /* Línea de acento con color React */
+  border-bottom: 2px solid #61dafb;
   padding-bottom: 10px;
   margin-bottom: 20px;
 }
 
+/* Formulario de agente */
 .agent-form {
   display: flex;
   flex-direction: column;
   gap: 18px;
-  flex-grow: 1; /* Para que el formulario ocupe el espacio si la tarjeta es más alta */
+  flex-grow: 1;
 }
 
 .form-group {
@@ -82,7 +99,7 @@ body {
   border-radius: 5px;
   border: 1px solid #ccc;
   font-size: 1rem;
-  box-sizing: border-box; /* Importante para que el padding no aumente el tamaño total */
+  box-sizing: border-box;
 }
 
 .form-group textarea {
@@ -99,17 +116,17 @@ body {
 }
 
 .form-group select {
-    background-color: white; /* Estilo para el select */
+  background-color: white;
 }
 
 .form-group input[disabled],
 .form-group textarea[disabled],
 .form-group select[disabled] {
-    background-color: #e9ecef; /* Color para campos deshabilitados */
-    cursor: not-allowed;
+  background-color: #e9ecef;
+  cursor: not-allowed;
 }
 
-
+/* Botones de envío */
 button[type="submit"] {
   background-color: #61dafb;
   color: #20232a;
@@ -120,20 +137,21 @@ button[type="submit"] {
   border-radius: 5px;
   cursor: pointer;
   transition: background-color 0.2s ease-in-out, transform 0.1s ease;
-  margin-top: 10px; /* Espacio antes del botón */
+  margin-top: 10px;
 }
 
 button[type="submit"]:hover:not(:disabled) {
   background-color: #21a1f1;
-  transform: translateY(-1px); /* Ligero efecto al pasar el mouse */
+  transform: translateY(-1px);
 }
 
 button[type="submit"]:disabled {
-  background-color: #b0bec5; /* Gris más claro para deshabilitado */
+  background-color: #b0bec5;
   color: #6c757d;
   cursor: not-allowed;
 }
 
+/* Mensajes de estado */
 .loading-message {
   margin-top: 15px;
   font-style: italic;
@@ -143,8 +161,8 @@ button[type="submit"]:disabled {
 
 .error-message {
   margin-top: 15px;
-  color: #b71c1c; /* Rojo oscuro para errores */
-  background-color: #ffcdd2; /* Fondo rojo claro */
+  color: #b71c1c;
+  background-color: #ffcdd2;
   border: 1px solid #ef9a9a;
   padding: 12px;
   border-radius: 5px;
@@ -153,14 +171,15 @@ button[type="submit"]:disabled {
 
 .success-message {
   margin-top: 15px;
-  color: #1b5e20; /* Verde oscuro para éxito */
-  background-color: #c8e6c9; /* Fondo verde claro */
+  color: #1b5e20;
+  background-color: #c8e6c9;
   border: 1px solid #a5d6a7;
   padding: 12px;
   border-radius: 5px;
   font-size: 0.9rem;
 }
 
+/* Contenedor de respuesta del agente */
 .agent-response-container {
   margin-top: 25px;
   padding: 20px;
@@ -192,28 +211,133 @@ button[type="submit"]:disabled {
   line-height: 1.6;
 }
 
+/* Detalles del prompt usado */
 .used-prompt-details {
-    margin-bottom: 15px;
-    background-color: #eef;
-    padding: 5px 10px;
-    border-radius: 4px;
-    font-size: 0.85rem;
+  margin-bottom: 15px;
+  background-color: #eef;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 0.85rem;
 }
 .used-prompt-details summary {
-    cursor: pointer;
-    font-weight: bold;
-    color: #335;
+  cursor: pointer;
+  font-weight: bold;
+  color: #335;
 }
 .system-prompt-display {
-    white-space: pre-wrap;
-    word-wrap: break-word;
-    font-family: 'SFMono-Regular', Consolas, Menlo, monospace;
-    background-color: #f9f9f9;
-    padding: 8px;
-    border-radius: 3px;
-    border: 1px solid #ddd;
-    margin-top: 5px;
-    font-size: 0.8rem;
-    max-height: 150px;
-    overflow-y: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-family: 'SFMono-Regular', Consolas, Menlo, monospace;
+  background-color: #f9f9f9;
+  padding: 8px;
+  border-radius: 3px;
+  border: 1px solid #ddd;
+  margin-top: 5px;
+  font-size: 0.8rem;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+/* Lista de referencia de IDs de agentes */
+.agent-list-for-reference {
+  font-size: 0.85rem;
+  margin-top: 8px;
+  background-color: #f8f9fa;
+  padding: 8px 12px;
+  border-radius: 4px;
+  border: 1px solid #e9ecef;
+}
+.agent-list-for-reference summary {
+  cursor: pointer;
+  font-weight: normal;
+  color: #007bff;
+}
+.agent-list-for-reference ul {
+  list-style-type: none;
+  padding-left: 0;
+  margin-top: 5px;
+  max-height: 150px;
+  overflow-y: auto;
+}
+.agent-list-for-reference li {
+  padding: 2px 0;
+}
+.agent-list-for-reference code {
+  background-color: #e9ecef;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 0.9em;
+}
+
+/* Contenedor de respuesta del flujo y su log */
+.flow-response-container {
+  margin-top: 25px;
+  padding: 20px;
+  background-color: #f8f9fa;
+  border-radius: 5px;
+  text-align: left;
+  border: 1px solid #dee2e6;
+}
+.flow-response-container h3,
+.flow-response-container h4 {
+  margin-top: 0;
+  color: #333;
+  border-bottom: 1px solid #ccc;
+  padding-bottom: 8px;
+  margin-bottom: 15px;
+}
+.flow-response-container h4 {
+  font-size: 1.1em;
+  margin-top: 20px;
+}
+
+/* Log paso a paso del flujo */
+.flow-log {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.flow-log-step {
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: #fff;
+}
+.flow-log-step summary {
+  cursor: pointer;
+  padding: 10px;
+  font-weight: bold;
+  background-color: #f1f3f5;
+  border-radius: 4px 4px 0 0;
+}
+.flow-log-step[open] summary {
+  border-bottom: 1px solid #ddd;
+}
+.log-step-content {
+  padding: 10px;
+  font-size: 0.9rem;
+}
+.log-step-content p {
+  margin: 0 0 5px;
+}
+.log-step-content pre.prompt-display,
+.log-step-content pre.system-prompt-display {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  background-color: #f8f9fa;
+  padding: 8px;
+  border-radius: 3px;
+  border: 1px solid #e9ecef;
+  margin-bottom: 10px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+.small-text {
+  font-size: 0.85em !important;
+}
+
+/* Media query para pantallas pequeñas */
+@media (max-width: 900px) {
+  .main-layout {
+    grid-template-columns: 1fr; /* Una sola columna */
+  }
 }

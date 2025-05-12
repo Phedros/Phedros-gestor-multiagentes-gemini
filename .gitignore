@@ -1,0 +1,34 @@
+# Sistema Operativo y Editores
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.vscode/
+
+# Dependencias y archivos de compilación del Frontend
+frontend/node_modules/
+frontend/build/
+frontend/.pnp
+frontend/.pnp.js
+frontend/coverage/
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+
+# Dependencias y archivos generados del Backend (ya tienes uno específico en backend/, pero es bueno tenerlo aquí también por si acaso)
+backend/venv/
+backend/__pycache__/
+backend/*.pyc
+backend/.env 
+# Si usaras SQLite y el archivo de la BD estuviera en backend/
+# backend/*.sqlite3 
+
+# Otros archivos de entorno que podrías añadir
+.env
+*.env
+.env.*
+!/.env.example # Si creas un .env.example, ¡SÍ querrás subirlo!
