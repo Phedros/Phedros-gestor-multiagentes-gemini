@@ -4,11 +4,26 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field # Field para validaciones/defaults
 import openai
 import os
+from pathlib import Path    
 from dotenv import load_dotenv
+load_dotenv(Path(__file__).resolve().parent / ".env")
+
 from typing import List, Dict, Union, Optional, Any # Any podría ser útil para logs
 import uuid # Para generar IDs únicos para los agentes
 
-load_dotenv()
+# --- Importaciones de Base de Datos ---
+from sqlalchemy.ext.asyncio import AsyncSession
+from .db.database import engine, Base, get_db_session # Importar de nuestra carpeta db
+from .db import models as db_models # Importar nuestros modelos SQLAlchemy
+from . import schemas # Crearemos este archivo para los modelos Pydantic
+
+# --- Importaciones de Pydantic desde schemas.py ---
+from .schemas import (
+    Agent, AgentCreate, AgentInvokeRequest, AgentInvokeResponse,
+    Flow, FlowCreate, FlowInvokeRequest, FlowInvokeResponse, FlowInvokeLogStep
+)
+
+
 
 try:
     client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -18,11 +33,25 @@ except Exception as e:
     print(f"Error al inicializar el cliente de OpenAI: {e}")
     client = None
 
+# --- NUEVO: Función para crear tablas de la BD (para desarrollo) ---
+async def create_db_and_tables():
+    async with engine.begin() as conn:
+        # await conn.run_sync(Base.metadata.drop_all) # Descomentar para borrar y recrear tablas en cada inicio (¡CUIDADO!)
+        await conn.run_sync(Base.metadata.create_all)
+        print("Tablas de base de datos creadas (si no existían).")
+
 app = FastAPI(
     title="API del Gestor Multiagentes",
-    version="0.2.0", # Incrementamos versión
-    description="Una API para crear y gestionar agentes de IA y flujos multiagentes."
+    version="0.3.0", # Incrementamos versión
+    description="API con persistencia en MySQL para agentes y flujos."
 )
+
+# --- NUEVO: Evento de startup para crear tablas ---
+@app.on_event("startup")
+async def on_startup():
+    print("Aplicación iniciándose...")
+    await create_db_and_tables()
+    # Aquí podrías poner más lógica de inicialización si es necesario
 
 origins = ["http://localhost", "http://localhost:3000"]
 app.add_middleware(
@@ -33,10 +62,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- "Base de datos" en memoria ---
+# --- "Base de datos" en memoria ---  Esto ya se podria eliminar si usamos una BD real
 # Usaremos un diccionario para guardar los agentes. La clave será el ID del agente.
-db_agents: Dict[str, 'AgentConfig'] = {}
-db_flows: Dict[str, 'FlowConfig'] = {} # NUEVO: para almacenar flujos
+#db_agents: Dict[str, 'AgentConfig'] = {}
+#db_flows: Dict[str, 'FlowConfig'] = {} # NUEVO: para almacenar flujos
 
 # --- Modelos Pydantic ---
 
@@ -103,230 +132,220 @@ class FlowInvokeResponse(BaseModel):
 
 # --- Endpoints de Gestión de Agentes ---
 
-@app.post("/api/v1/agents", response_model=AgentConfig, status_code=201)
-async def create_agent(agent_data: AgentConfigCreate):
-    """
-    Crea un nuevo agente con un nombre y un system_prompt.
-    Genera un ID único para el agente.
-    """
-    agent_id = str(uuid.uuid4())
-    new_agent = AgentConfig(id=agent_id, **agent_data.model_dump())
-    db_agents[agent_id] = new_agent
-    print(f"Agente creado: {new_agent}")
-    return new_agent
+@app.post("/api/v1/agents", response_model=schemas.Agent, status_code=201)
+async def create_agent_endpoint(
+    agent_data: schemas.AgentCreate,
+    db: AsyncSession = Depends(get_db_session)
+):
+    db_agent = db_models.Agent(
+        name=agent_data.name,
+        system_prompt=agent_data.system_prompt
+    )
+    db.add(db_agent)
+    await db.flush()           # ← acá se dispara el default y ya tenés el UUID
+    # opcional: print(db_agent.id)  # comprobá que ahora NO es None
+    return db_agent
 
-@app.get("/api/v1/agents", response_model=List[AgentConfig])
-async def list_agents():
-    """
-    Devuelve una lista de todos los agentes configurados.
-    """
-    return list(db_agents.values())
 
-@app.get("/api/v1/agents/{agent_id}", response_model=AgentConfig)
-async def get_agent(agent_id: str):
-    """
-    Obtiene la configuración de un agente específico por su ID.
-    """
-    agent = db_agents.get(agent_id)
+@app.get("/api/v1/agents", response_model=List[schemas.Agent])
+async def list_agents_endpoint(
+    skip: int = 0, # Paginación simple
+    limit: int = 100,
+    db: AsyncSession = Depends(get_db_session)
+):
+    result = await db.execute(
+        db_models.Agent.__table__.select().offset(skip).limit(limit)
+    )
+    agents = result.fetchall()
+    # Pydantic V2 directamente con `return agents` si el modelo tiene from_attributes
+    # Para Pydantic V1, a veces se necesita convertir explícitamente si la inferencia falla
+    # return [schemas.Agent.from_orm(agent) for agent in agents] # Esto es más explícito
+    return agents # FastAPI/Pydantic debería manejar la conversión
+
+@app.get("/api/v1/agents/{agent_id}", response_model=schemas.Agent)
+async def get_agent_endpoint(agent_id: str, db: AsyncSession = Depends(get_db_session)):
+    agent = await db.get(db_models.Agent, agent_id)
     if not agent:
-        raise HTTPException(status_code=404, detail=f"Agente con ID '{agent_id}' no encontrado.")
+        raise HTTPException(status_code=404, detail="Agente no encontrado.")
     return agent
 
 # --- NUEVO: Endpoints de Gestión de Flujos ---
 
-@app.post("/api/v1/flows", response_model=FlowConfig, status_code=201)
-async def create_flow(flow_data: FlowConfigCreate):
-    """
-    Crea un nuevo flujo multiagente.
-    Valida que todos los agent_ids proporcionados existan.
-    """
-    # Validar que todos los agent_ids existan
+@app.post("/api/v1/flows", response_model=schemas.Flow, status_code=201)
+async def create_flow_endpoint(
+    flow_data: schemas.FlowCreate,
+    db: AsyncSession = Depends(get_db_session)
+):
+    # 1) Verificar que existan los agentes
     for agent_id in flow_data.agent_ids:
-        if agent_id not in db_agents:
-            raise HTTPException(
-                status_code=404, # O 400 Bad Request, ya que es un problema con los datos de entrada
-                detail=f"Agente con ID '{agent_id}' no encontrado en la configuración del flujo '{flow_data.name}'."
-            )
+        if not await db.get(db_models.Agent, agent_id):
+            raise HTTPException(400, f"Agente con ID '{agent_id}' no encontrado.")
 
-    flow_id = str(uuid.uuid4())
-    new_flow = FlowConfig(id=flow_id, **flow_data.model_dump())
-    db_flows[flow_id] = new_flow
-    print(f"Flujo creado: {new_flow}")
-    return new_flow
+    # 2) Crear el flujo
+    db_flow = db_models.Flow(
+        name=flow_data.name,
+        description=flow_data.description,
+        agent_ids=flow_data.agent_ids
+    )
+    db.add(db_flow)
 
-@app.get("/api/v1/flows", response_model=List[FlowConfig])
-async def list_flows():
-    """
-    Devuelve una lista de todos los flujos configurados.
-    """
-    return list(db_flows.values())
+    # 🔑 Dispara el INSERT y genera el UUID
+    await db.flush()
+    await db.refresh(db_flow)
 
-@app.get("/api/v1/flows/{flow_id}", response_model=FlowConfig)
-async def get_flow(flow_id: str):
-    """
-    Obtiene la configuración de un flujo específico por su ID.
-    """
-    flow = db_flows.get(flow_id)
+    return db_flow
+
+
+@app.get("/api/v1/flows", response_model=List[schemas.Flow])
+async def list_flows_endpoint(
+    skip: int = 0, limit: int = 100, db: AsyncSession = Depends(get_db_session)
+):
+    result = await db.execute(
+        db_models.Flow.__table__.select().offset(skip).limit(limit)
+    )
+    flows = result.fetchall()
+    return flows
+
+@app.get("/api/v1/flows/{flow_id}", response_model=schemas.Flow)
+async def get_flow_endpoint(flow_id: str, db: AsyncSession = Depends(get_db_session)):
+    flow = await db.get(db_models.Flow, flow_id)
     if not flow:
-        raise HTTPException(status_code=404, detail=f"Flujo con ID '{flow_id}' no encontrado.")
+        raise HTTPException(status_code=404, detail="Flujo no encontrado.")
     return flow
 
-# --- Endpoint de Invocación de Agente (Modificado) ---
-
-@app.post("/api/v1/agent/invoke", response_model=AgentInvokeResponse)
-async def invoke_agent(request_data: AgentInvokeRequest):
-    if not client:
+# --- Endpoint de Invocación de Agente Individual (AHORA CON BD) ---
+@app.post("/api/v1/agent/invoke", response_model=schemas.AgentInvokeResponse)
+async def invoke_agent_endpoint( # Renombrado para consistencia
+    request_data: schemas.AgentInvokeRequest,
+    db: AsyncSession = Depends(get_db_session) # Inyectar sesión
+):
+    if not client: # cliente OpenAI
         raise HTTPException(status_code=500, detail="Cliente de OpenAI no inicializado.")
 
     actual_system_prompt = ""
+    agent_name_for_log = "Ad-hoc" # Nombre por defecto para el log
 
     if request_data.agent_id:
-        agent_config = db_agents.get(request_data.agent_id)
-        if not agent_config:
+        agent_config_db = await db.get(db_models.Agent, request_data.agent_id) # Obtener de BD
+        if not agent_config_db:
             raise HTTPException(status_code=404, detail=f"Agente con ID '{request_data.agent_id}' no encontrado.")
-        actual_system_prompt = agent_config.system_prompt
-        print(f"Usando system_prompt del agente ID {request_data.agent_id}: {actual_system_prompt}")
+        actual_system_prompt = agent_config_db.system_prompt
+        agent_name_for_log = agent_config_db.name
+        print(f"Usando system_prompt del agente ID {request_data.agent_id} ({agent_name_for_log})")
     elif request_data.system_prompt:
         actual_system_prompt = request_data.system_prompt
-        print(f"Usando system_prompt ad-hoc: {actual_system_prompt}")
+        print(f"Usando system_prompt ad-hoc")
     else:
-        # Si ni agent_id ni system_prompt se proveen, podríamos usar un default global o dar error.
-        # Por ahora, usaremos un default simple si queremos permitirlo, o error.
-        # Para que sea más claro, exijamos uno de los dos (o que el modelo AgentInvokeRequest tenga un default)
-        # Modificamos AgentInvokeRequest para que system_prompt sea opcional y la lógica aquí maneje si no hay ninguno.
          raise HTTPException(status_code=400, detail="Se debe proveer 'agent_id' o un 'system_prompt'.")
 
-
-    print(f"User Prompt recibido: {request_data.user_prompt}")
-
+    # ... (lógica de llamada a OpenAI y manejo de errores sin cambios significativos,
+    #      solo asegúrate de que usa `actual_system_prompt`) ...
     try:
-        chat_completion = client.chat.completions.create(
+        # ... (llamada a client.chat.completions.create) ...
+        chat_completion = client.chat.completions.create( # Asegúrate que esta parte esté
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": actual_system_prompt},
                 {"role": "user", "content": request_data.user_prompt}
             ],
-            temperature=0.7,
-            max_tokens=250 # Aumenté un poco por si acaso
+            temperature=0.7, max_tokens=250
         )
-
         agent_text_response = chat_completion.choices[0].message.content if chat_completion.choices else "No se recibió respuesta válida."
-
-        print(f"Respuesta del agente: {agent_text_response}")
-        return AgentInvokeResponse(
+        return schemas.AgentInvokeResponse(
             agent_response=agent_text_response,
-            used_system_prompt=actual_system_prompt # Devolvemos el prompt usado
+            used_system_prompt=actual_system_prompt
         )
+    except Exception as e: # Simplificado, pero deberías tener los manejadores de error de OpenAI
+        print(f"Error en OpenAI o invocación: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
-    except openai.APIConnectionError as e:
-        # ... (mismos manejadores de error que antes)
-        print(f"Error de conexión con OpenAI: {e}")
-        raise HTTPException(status_code=503, detail=f"Error de conexión con la API de OpenAI: {e}")
-    except openai.RateLimitError as e:
-        print(f"Límite de tasa de OpenAI excedido: {e}")
-        raise HTTPException(status_code=429, detail=f"Límite de tasa de OpenAI excedido: {e}")
-    except openai.AuthenticationError as e:
-        print(f"Error de autenticación con OpenAI (revisa tu API Key): {e}")
-        raise HTTPException(status_code=401, detail=f"Error de autenticación con OpenAI (API Key inválida o sin permisos): {e}")
-    except openai.APIError as e: # Error genérico de la API de OpenAI
-        print(f"Error en la API de OpenAI: {e}")
-        raise HTTPException(status_code=500, detail=f"Error en la API de OpenAI: {e}")
-    except Exception as e:
-        print(f"Ocurrió un error inesperado: {e}")
-        raise HTTPException(status_code=500, detail=f"Ocurrió un error inesperado en el servidor: {e}")
-
-# --- NUEVO: Endpoint de Invocación de Flujo ---
-@app.post("/api/v1/flows/{flow_id}/invoke", response_model=FlowInvokeResponse)
-async def invoke_flow(flow_id: str, request_data: FlowInvokeRequest):
-    """
-    Invoca un flujo multiagente lineal.
-    La salida de un agente se convierte en la entrada (user_prompt) del siguiente.
-    """
-    if not client:
+# --- Endpoint de Invocación de Flujo (AHORA CON BD) ---
+@app.post("/api/v1/flows/{flow_id}/invoke", response_model=schemas.FlowInvokeResponse)
+async def invoke_flow_endpoint( # Renombrado
+    flow_id: str,
+    request_data: schemas.FlowInvokeRequest,
+    db: AsyncSession = Depends(get_db_session) # Inyectar sesión
+):
+    if not client: # cliente OpenAI
         raise HTTPException(status_code=500, detail="Cliente de OpenAI no inicializado.")
 
-    flow_config = db_flows.get(flow_id)
-    if not flow_config:
+    flow_config_db = await db.get(db_models.Flow, flow_id) # Obtener de BD
+    if not flow_config_db:
         raise HTTPException(status_code=404, detail=f"Flujo con ID '{flow_id}' no encontrado.")
 
     current_input_prompt = request_data.initial_user_prompt
-    log_steps: List[FlowInvokeLogStep] = []
+    log_steps: List[schemas.FlowInvokeLogStep] = [] # Usar el schema Pydantic para el log
     final_flow_output = ""
 
-    print(f"\n--- Iniciando Invocación de Flujo: {flow_config.name} (ID: {flow_id}) ---")
+    # ... (Lógica de iteración sobre flow_config_db.agent_ids) ...
+    # Dentro del bucle, para cada agent_id_in_flow:
+    # agent_config_db_step = await db.get(db_models.Agent, agent_id_in_flow)
+    # if not agent_config_db_step: raise HTTPException(...)
+    # actual_system_prompt_step = agent_config_db_step.system_prompt
+    # ... (llamada a OpenAI) ...
+    # log_steps.append(schemas.FlowInvokeLogStep(...))
+    # ... (actualizar current_input_prompt)
+
+    print(f"\n--- Iniciando Invocación de Flujo: {flow_config_db.name} (ID: {flow_id}) ---")
     print(f"Prompt Inicial del Usuario: {current_input_prompt}")
 
-    for i, agent_id_in_flow in enumerate(flow_config.agent_ids):
-        agent_config = db_agents.get(agent_id_in_flow)
-        if not agent_config:
-            # Esto debería haber sido atrapado en la creación del flujo, pero es una buena doble verificación.
+    for i, agent_id_in_flow in enumerate(flow_config_db.agent_ids): # agent_ids es una lista JSON
+        agent_config_db_step = await db.get(db_models.Agent, agent_id_in_flow)
+        if not agent_config_db_step:
             error_detail = f"Configuración del Agente ID '{agent_id_in_flow}' no encontrada durante la ejecución del flujo."
             print(f"ERROR: {error_detail}")
-            # Podríamos añadir un log de error aquí también.
             raise HTTPException(status_code=500, detail=error_detail)
 
-        actual_system_prompt = agent_config.system_prompt
+        actual_system_prompt_step = agent_config_db_step.system_prompt
 
-        print(f"\n  Paso {i+1}/{len(flow_config.agent_ids)} - Agente: {agent_config.name} (ID: {agent_id_in_flow})")
-        print(f"    System Prompt: {actual_system_prompt[:100]}...") # Mostrar solo una parte si es largo
-        print(f"    Input (User Prompt): {current_input_prompt[:100]}...")
+        print(f"\n  Paso {i+1}/{len(flow_config_db.agent_ids)} - Agente: {agent_config_db_step.name} (ID: {agent_id_in_flow})")
+        # ... (resto de los prints de log) ...
 
         try:
+            # ... (llamada a client.chat.completions.create con actual_system_prompt_step y current_input_prompt)
             chat_completion = client.chat.completions.create(
-                model="gpt-3.5-turbo", # O el modelo que prefieras
+                model="gpt-3.5-turbo",
                 messages=[
-                    {"role": "system", "content": actual_system_prompt},
+                    {"role": "system", "content": actual_system_prompt_step},
                     {"role": "user", "content": current_input_prompt}
                 ],
-                temperature=0.7,
-                max_tokens=300 # Podrías querer ajustar esto por agente o por flujo
+                temperature=0.7, max_tokens=300
             )
-
-            agent_text_response = chat_completion.choices[0].message.content if chat_completion.choices else "No se recibió respuesta válida del modelo para este paso."
-            print(f"    Output (Respuesta del Agente): {agent_text_response[:100]}...")
+            agent_text_response = chat_completion.choices[0].message.content if chat_completion.choices else "No se recibió respuesta."
 
         except Exception as e:
-            # Capturar cualquier error de la API de OpenAI durante un paso
-            error_message = f"Error al invocar al agente '{agent_config.name}' (ID: {agent_id_in_flow}) en el paso {i+1} del flujo: {str(e)}"
-            print(f"ERROR: {error_message}")
-            # Registrar el error en el log del flujo
-            log_steps.append(FlowInvokeLogStep(
-                agent_id=agent_id_in_flow,
-                agent_name=agent_config.name,
-                input_prompt=current_input_prompt,
-                output_response=f"ERROR: {error_message}", # Indicar el error en la salida
-                system_prompt_used=actual_system_prompt
+            error_message = f"Error al invocar al agente '{agent_config_db_step.name}' (ID: {agent_id_in_flow}) en el paso {i+1} del flujo: {str(e)}"
+            # ... (manejo de error y append al log) ...
+            log_steps.append(schemas.FlowInvokeLogStep(
+                agent_id=agent_id_in_flow, agent_name=agent_config_db_step.name,
+                input_prompt=current_input_prompt, output_response=f"ERROR: {error_message}",
+                system_prompt_used=actual_system_prompt_step
             ))
-            # Devolver una respuesta parcial o un error general del flujo
-            # Por ahora, levantamos una excepción que terminará el flujo
             raise HTTPException(status_code=500, detail=error_message)
 
-        log_steps.append(FlowInvokeLogStep(
-            agent_id=agent_id_in_flow,
-            agent_name=agent_config.name,
-            input_prompt=current_input_prompt,
-            output_response=agent_text_response,
-            system_prompt_used=actual_system_prompt
+        log_steps.append(schemas.FlowInvokeLogStep(
+            agent_id=agent_id_in_flow, agent_name=agent_config_db_step.name,
+            input_prompt=current_input_prompt, output_response=agent_text_response,
+            system_prompt_used=actual_system_prompt_step
         ))
 
-        current_input_prompt = agent_text_response # La salida de este agente es la entrada del siguiente
-        final_flow_output = agent_text_response # Guardar la salida del último agente ejecutado
+        current_input_prompt = agent_text_response
+        final_flow_output = agent_text_response
 
-    print(f"\n--- Invocación de Flujo '{flow_config.name}' Finalizada ---")
-    print(f"Salida Final del Flujo: {final_flow_output[:100]}...")
-
-    return FlowInvokeResponse(
+    # ... (print de finalización) ...
+    return schemas.FlowInvokeResponse(
         final_output=final_flow_output,
         flow_id=flow_id,
-        flow_name=flow_config.name,
+        flow_name=flow_config_db.name,
         log=log_steps
     )
 
-# Endpoints de prueba (los mantenemos por ahora)
+
+# --- Endpoints de / y /saludo (sin cambios) ---
 @app.get("/")
-async def get_root():
-    return {"message": f"API del Gestor Multiagentes v{app.version}. Estado del cliente OpenAI: {'OK' if client and client.api_key else 'ERROR'}"}
+async def get_root_endpoint(): # Renombrado
+    return {"message": f"API del Gestor Multiagentes v{app.version}. Persistencia: MySQL. Estado OpenAI: {'OK' if client and client.api_key else 'ERROR'}"}
 
 @app.get("/saludo/{nombre}")
-async def get_saludo(nombre: str):
+async def get_saludo_endpoint(nombre: str): # Renombrado
     return {"message": f"¡Hola, {nombre}! API v{app.version}."}
