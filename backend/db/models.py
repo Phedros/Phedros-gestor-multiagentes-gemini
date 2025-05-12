@@ -14,6 +14,9 @@ class Agent(Base):
     name = Column(String(100), nullable=False, index=True)
     system_prompt = Column(Text, nullable=False)
     # description = Column(Text, nullable=True) # Podríamos añadir más campos
+    # NUEVO: Campo para almacenar la lista de nombres de herramientas permitidas para este agente
+    # Ejemplo: ["get_current_weather", "simple_calculator"]
+    tools_enabled = Column(JSON, nullable=True, default=[]) # Lista de strings
 
     # Relación (si quisiéramos acceder a los flujos donde este agente es usado,
     # pero para una lista de IDs en Flow, esta relación es más compleja.

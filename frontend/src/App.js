@@ -11,6 +11,11 @@ function App() {
   const [rootLoading, setRootLoading] = useState(true);
   const [rootError, setRootError] = useState(null);
 
+  // --- NUEVO: Estados para Herramientas Disponibles ---
+  const [availableSystemTools, setAvailableSystemTools] = useState([]);
+  const [isLoadingSystemTools, setIsLoadingSystemTools] = useState(false);
+  const [loadSystemToolsError, setLoadSystemToolsError] = useState(null);
+
   // --- Estados para la Invocación del Agente Individual ---
   const [selectedAgentIdForInvoke, setSelectedAgentIdForInvoke] = useState('');
   const [adhocSystemPrompt, setAdhocSystemPrompt] = useState('Eres un asistente virtual útil y conciso.');
@@ -26,6 +31,7 @@ function App() {
   const [loadAgentsError, setLoadAgentsError] = useState(null);
   const [newAgentName, setNewAgentName] = useState('');
   const [newAgentSystemPrompt, setNewAgentSystemPrompt] = useState('');
+  const [newAgentEnabledTools, setNewAgentEnabledTools] = useState([]); // NUEVO: array de strings (nombres de herramientas seleccionadas)
   const [isCreatingAgent, setIsCreatingAgent] = useState(false);
   const [createAgentError, setCreateAgentError] = useState(null);
   const [createAgentSuccess, setCreateAgentSuccess] = useState('');
@@ -49,6 +55,8 @@ function App() {
   const [flowInvokeError, setFlowInvokeError] = useState(null);
 
 
+
+
   // --- Efecto para cargar datos iniciales ---
   useEffect(() => {
     fetch('http://127.0.0.1:8000/')
@@ -61,7 +69,8 @@ function App() {
       .finally(() => setRootLoading(false));
 
     fetchAgentsList();
-    fetchFlowsList(); // NUEVO: Cargar flujos al inicio
+    fetchFlowsList();
+    fetchAvailableSystemTools();
   }, []);
 
   // --- Funciones para Gestión de Agentes (sin cambios significativos) ---
@@ -94,6 +103,7 @@ function App() {
         body: JSON.stringify({
           name: newAgentName,
           system_prompt: newAgentSystemPrompt,
+          tools_enabled: newAgentEnabledTools,
         }),
       });
       if (!response.ok) {
@@ -104,12 +114,43 @@ function App() {
       setCreateAgentSuccess(`¡Agente "${newAgent.name}" creado!`);
       setNewAgentName('');
       setNewAgentSystemPrompt('');
+      setNewAgentEnabledTools([]);
       fetchAgentsList();
     } catch (err) {
       console.error("Error al crear agente:", err);
       setCreateAgentError(err.message);
     } finally {
       setIsCreatingAgent(false);
+    }
+  };
+
+  // --- NUEVO: Handler para cambiar la selección de herramientas ---
+  const handleToolSelectionChange = (toolName) => {
+    setNewAgentEnabledTools(prevSelectedTools => {
+      if (prevSelectedTools.includes(toolName)) {
+        return prevSelectedTools.filter(t => t !== toolName); // Deseleccionar
+      } else {
+        return [...prevSelectedTools, toolName]; // Seleccionar
+      }
+    });
+  };
+
+  // --- NUEVO: Función para Cargar Herramientas Disponibles ---
+  const fetchAvailableSystemTools = async () => {
+    setIsLoadingSystemTools(true);
+    setLoadSystemToolsError(null);
+    try {
+      const response = await fetch(`${API_BASE_URL}/tools/available`);
+      if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+      const data = await response.json();
+      // Guardamos solo la parte 'function' que tiene name, description, parameters
+      setAvailableSystemTools(data.map(tool => tool.function));
+    } catch (err) {
+      console.error("Error al cargar herramientas del sistema:", err);
+      setLoadSystemToolsError(err.message);
+      setAvailableSystemTools([]);
+    } finally {
+      setIsLoadingSystemTools(false);
     }
   };
 
@@ -293,6 +334,31 @@ function App() {
               <div className="form-group">
                 <label htmlFor="newAgentSystemPrompt">System Prompt del Nuevo Agente:</label>
                 <textarea id="newAgentSystemPrompt" value={newAgentSystemPrompt} onChange={(e) => setNewAgentSystemPrompt(e.target.value)} rows="4" required />
+              </div>
+              <div className="form-group">
+                <label>Habilitar Herramientas para este Agente:</label>
+                {isLoadingSystemTools ? <p>Cargando herramientas...</p> :
+                 loadSystemToolsError ? <p className="error-message">Error al cargar herramientas: {loadSystemToolsError}</p> :
+                 availableSystemTools.length === 0 ? <p>No hay herramientas disponibles en el sistema.</p> : (
+                  <div className="tools-selection-list">
+                    {availableSystemTools.map(tool => (
+                      <div key={tool.name} className="tool-checkbox-item">
+                        <input
+                          type="checkbox"
+                          id={`tool-${tool.name}`}
+                          value={tool.name}
+                          checked={newAgentEnabledTools.includes(tool.name)}
+                          onChange={() => handleToolSelectionChange(tool.name)}
+                        />
+                        <label htmlFor={`tool-${tool.name}`} title={tool.description}>
+                          {tool.name}
+                        </label>
+                        {/* Podríamos mostrar la descripción de la herramienta aquí también si quisiéramos */}
+                         {/* <p className="tool-description-small">{tool.description}</p> */}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
               <button type="submit" disabled={isCreatingAgent}>{isCreatingAgent ? 'Creando...' : 'Crear Agente'}</button>
               {createAgentError && <p className="error-message">{createAgentError}</p>}

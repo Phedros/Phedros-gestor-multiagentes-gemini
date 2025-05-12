@@ -341,3 +341,46 @@ button[type="submit"]:disabled {
     grid-template-columns: 1fr; /* Una sola columna */
   }
 }
+
+.tools-selection-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px; /* Espacio entre cada opción de herramienta */
+  padding: 10px;
+  border: 1px solid #e0e0e0;
+  border-radius: 5px;
+  background-color: #f9f9f9;
+  max-height: 200px; /* Para que no se haga muy largo si hay muchas herramientas */
+  overflow-y: auto;
+}
+
+.tool-checkbox-item {
+  display: flex;
+  align-items: center;
+}
+
+.tool-checkbox-item input[type="checkbox"] {
+  margin-right: 10px;
+  width: 16px; /* Tamaño del checkbox */
+  height: 16px;
+  cursor: pointer;
+}
+
+.tool-checkbox-item label {
+  font-weight: normal; /* Sobrescribir el bold de .form-group label si es necesario */
+  font-size: 0.95rem;
+  color: #333;
+  cursor: pointer;
+}
+
+.tool-checkbox-item label:hover {
+  color: #007bff; /* Color al pasar el mouse para indicar interactividad */
+}
+
+/* Opcional: para mostrar la descripción de la herramienta si la añades al JSX */
+.tool-description-small {
+  font-size: 0.8rem;
+  color: #666;
+  margin-left: 26px; /* Alinear con el texto del label si el checkbox tiene margen */
+  margin-top: -5px; /* Ajuste fino */
+}

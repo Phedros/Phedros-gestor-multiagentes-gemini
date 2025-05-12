@@ -7,6 +7,7 @@ import os
 from pathlib import Path    
 from dotenv import load_dotenv
 load_dotenv(Path(__file__).resolve().parent / ".env")
+import json
 
 from typing import List, Dict, Union, Optional, Any # Any podría ser útil para logs
 import uuid # Para generar IDs únicos para los agentes
@@ -20,9 +21,10 @@ from . import schemas # Crearemos este archivo para los modelos Pydantic
 # --- Importaciones de Pydantic desde schemas.py ---
 from .schemas import (
     Agent, AgentCreate, AgentInvokeRequest, AgentInvokeResponse,
-    Flow, FlowCreate, FlowInvokeRequest, FlowInvokeResponse, FlowInvokeLogStep
+    Flow, FlowCreate, FlowInvokeRequest, FlowInvokeResponse, FlowInvokeLogStep, AvailableTool 
 )
 
+from .agent_tools.available_tools import AVAILABLE_TOOLS_SCHEMAS, TOOL_NAME_TO_FUNCTION_MAP
 
 
 try:
@@ -134,16 +136,28 @@ class FlowInvokeResponse(BaseModel):
 
 @app.post("/api/v1/agents", response_model=schemas.Agent, status_code=201)
 async def create_agent_endpoint(
-    agent_data: schemas.AgentCreate,
+    agent_data: schemas.AgentCreate, # agent_data ahora incluye tools_enabled
     db: AsyncSession = Depends(get_db_session)
 ):
+    # Validación opcional: verificar que las herramientas habilitadas existan en nuestra lista global
+    if agent_data.tools_enabled:
+        valid_tool_names = [tool_schema["function"]["name"] for tool_schema in AVAILABLE_TOOLS_SCHEMAS]
+        for tool_name in agent_data.tools_enabled:
+            if tool_name not in valid_tool_names:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Herramienta '{tool_name}' no es una herramienta válida. Las herramientas disponibles son: {', '.join(valid_tool_names)}"
+                )
+
     db_agent = db_models.Agent(
         name=agent_data.name,
-        system_prompt=agent_data.system_prompt
+        system_prompt=agent_data.system_prompt,
+        tools_enabled=agent_data.tools_enabled or [] # Guardar la lista de herramientas
     )
     db.add(db_agent)
-    await db.flush()           # ← acá se dispara el default y ya tenés el UUID
-    # opcional: print(db_agent.id)  # comprobá que ahora NO es None
+        # ⬇️   ESTO ES LO QUE FALTABA
+    await db.flush()           # fuerza el INSERT
+    await db.refresh(db_agent) # trae el id asignado
     return db_agent
 
 
@@ -213,51 +227,160 @@ async def get_flow_endpoint(flow_id: str, db: AsyncSession = Depends(get_db_sess
         raise HTTPException(status_code=404, detail="Flujo no encontrado.")
     return flow
 
+MAX_TOOL_CALLS_PER_INVOCATION = 5 # Para evitar bucles infinitos
+
 # --- Endpoint de Invocación de Agente Individual (AHORA CON BD) ---
 @app.post("/api/v1/agent/invoke", response_model=schemas.AgentInvokeResponse)
-async def invoke_agent_endpoint( # Renombrado para consistencia
+async def invoke_agent_endpoint(
     request_data: schemas.AgentInvokeRequest,
-    db: AsyncSession = Depends(get_db_session) # Inyectar sesión
+    db: AsyncSession = Depends(get_db_session)
 ):
-    if not client: # cliente OpenAI
+    if not client:
         raise HTTPException(status_code=500, detail="Cliente de OpenAI no inicializado.")
 
     actual_system_prompt = ""
-    agent_name_for_log = "Ad-hoc" # Nombre por defecto para el log
+    agent_name_for_log = "Ad-hoc"
+    agent_id_for_log = "ad-hoc"
+
+    # --- Determinar System Prompt y Herramientas del Agente ---
+    agent_tools_to_pass_to_llm = [] # Lista de schemas de herramientas para pasar a OpenAI
+    agent_enabled_tool_names = []  # Lista de nombres de herramientas habilitadas para este agente
 
     if request_data.agent_id:
-        agent_config_db = await db.get(db_models.Agent, request_data.agent_id) # Obtener de BD
+        agent_config_db = await db.get(db_models.Agent, request_data.agent_id)
         if not agent_config_db:
             raise HTTPException(status_code=404, detail=f"Agente con ID '{request_data.agent_id}' no encontrado.")
         actual_system_prompt = agent_config_db.system_prompt
         agent_name_for_log = agent_config_db.name
-        print(f"Usando system_prompt del agente ID {request_data.agent_id} ({agent_name_for_log})")
+        agent_id_for_log = agent_config_db.id
+        agent_enabled_tool_names = agent_config_db.tools_enabled or []
+
+        if agent_enabled_tool_names:
+            for tool_schema in AVAILABLE_TOOLS_SCHEMAS:
+                if tool_schema["function"]["name"] in agent_enabled_tool_names:
+                    agent_tools_to_pass_to_llm.append(tool_schema)
+
+        print(f"Usando agente: {agent_name_for_log} (ID: {agent_id_for_log}) con herramientas: {agent_enabled_tool_names}")
     elif request_data.system_prompt:
         actual_system_prompt = request_data.system_prompt
-        print(f"Usando system_prompt ad-hoc")
+        # Los agentes Ad-hoc no tendrán herramientas por ahora, a menos que lo implementemos explícitamente
+        print(f"Usando system_prompt ad-hoc (sin herramientas por defecto)")
     else:
          raise HTTPException(status_code=400, detail="Se debe proveer 'agent_id' o un 'system_prompt'.")
 
-    # ... (lógica de llamada a OpenAI y manejo de errores sin cambios significativos,
-    #      solo asegúrate de que usa `actual_system_prompt`) ...
-    try:
-        # ... (llamada a client.chat.completions.create) ...
-        chat_completion = client.chat.completions.create( # Asegúrate que esta parte esté
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": actual_system_prompt},
-                {"role": "user", "content": request_data.user_prompt}
-            ],
-            temperature=0.7, max_tokens=250
-        )
-        agent_text_response = chat_completion.choices[0].message.content if chat_completion.choices else "No se recibió respuesta válida."
-        return schemas.AgentInvokeResponse(
-            agent_response=agent_text_response,
-            used_system_prompt=actual_system_prompt
-        )
-    except Exception as e: # Simplificado, pero deberías tener los manejadores de error de OpenAI
-        print(f"Error en OpenAI o invocación: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    # --- Ciclo de Conversación con el LLM (para manejo de herramientas) ---
+    messages = [
+        {"role": "system", "content": actual_system_prompt},
+        {"role": "user", "content": request_data.user_prompt}
+    ]
+
+    print(f"\n--- Iniciando Invocación de Agente: {agent_name_for_log} ---")
+    print(f"  User Prompt Inicial: {request_data.user_prompt[:200]}...")
+    if agent_tools_to_pass_to_llm:
+         print(f"  Herramientas disponibles para el LLM: {[t['function']['name'] for t in agent_tools_to_pass_to_llm]}")
+
+
+    tool_calls_count = 0
+    openai_call_attempts = 0 # Contador para llamadas a OpenAI
+    while tool_calls_count < MAX_TOOL_CALLS_PER_INVOCATION:
+        try:
+            openai_call_attempts += 1 # Incrementar antes de la llamada
+            print(f"--> Enviando a OpenAI (Llamada LLM #{openai_call_attempts}): {len(messages)} mensajes.") # Log antes de la llamada
+
+            # Parámetros para la llamada a OpenAI
+            openai_call_params = {
+                "model": "gpt-3.5-turbo", # o "gpt-4o", "gpt-4-turbo"
+                "messages": messages,
+                "temperature": 0.7,
+                "max_tokens": 350 # Aumentar un poco si se usan herramientas
+            }
+            if agent_tools_to_pass_to_llm: # Solo pasar tools si hay herramientas configuradas
+                openai_call_params["tools"] = agent_tools_to_pass_to_llm
+                openai_call_params["tool_choice"] = "auto" # Permitir al LLM decidir si usa una herramienta o no
+
+            chat_completion = client.chat.completions.create(**openai_call_params)
+            response_message = chat_completion.choices[0].message
+
+        except Exception as e: # Simplificado, pero deberías tener los manejadores de error de OpenAI
+            print(f"Error en llamada a OpenAI: {e}")
+            raise HTTPException(status_code=500, detail=f"Error en llamada a OpenAI: {str(e)}")
+
+        # Procesar la respuesta del LLM
+        if response_message.tool_calls:
+            print(f" <-- LLM solicitó {len(response_message.tool_calls)} llamada(s) a herramientas.") # Log después de recibir respuesta
+            messages.append(response_message) # Añadir la respuesta del asistente (con tool_calls) al historial
+
+            for tool_call in response_message.tool_calls:
+                tool_calls_count += 1
+                function_name = tool_call.function.name
+                function_args_str = tool_call.function.arguments
+
+                print(f"    [Procesando Herramienta #{tool_calls_count}]")
+                print(f"      ID Llamada: {tool_call.id}")
+                print(f"      Función: {function_name}")
+                print(f"      Argumentos: {function_args_str}")
+
+                try:
+                    function_args = json.loads(function_args_str)
+                except json.JSONDecodeError:
+                    error_msg = f"Error: Argumentos de la función '{function_name}' no son JSON válido: {function_args_str}"
+                    print(f"    ERROR: {error_msg}")
+                    # Podríamos enviar este error de vuelta al LLM
+                    messages.append({
+                        "tool_call_id": tool_call.id,
+                        "role": "tool",
+                        "name": function_name,
+                        "content": json.dumps({"error": "Argumentos no válidos", "details": error_msg}),
+                    })
+                    continue # Ir a la siguiente tool_call si hay varias, o al siguiente ciclo de LLM
+
+                if function_name in TOOL_NAME_TO_FUNCTION_MAP:
+                    function_to_call = TOOL_NAME_TO_FUNCTION_MAP[function_name]
+                    try:
+                        print(f"      Ejecutando: {function_name}(**{function_args})") # Log antes de ejecutar
+                        function_response = function_to_call(**function_args)
+                        # Limitar longitud de la respuesta en el log
+                        response_preview = str(function_response)
+                        if len(response_preview) > 200:
+                            response_preview = response_preview[:197] + "..."
+                        print(f"      Respuesta Herramienta: {response_preview}") # Log después de ejecutar
+
+                    except Exception as e:
+                        print(f"    ERROR al ejecutar la herramienta '{function_name}': {str(e)}")
+                        function_response = json.dumps({"error": f"Error al ejecutar la herramienta: {str(e)}"})
+
+                    messages.append({
+                        "tool_call_id": tool_call.id,
+                        "role": "tool",
+                        "name": function_name,
+                        "content": str(function_response), # Debe ser un string
+                    })
+                else:
+                    print(f"    ERROR: Función '{function_name}' desconocida.")
+                    messages.append({
+                        "tool_call_id": tool_call.id,
+                        "role": "tool",
+                        "name": function_name,
+                        "content": json.dumps({"error": f"Función '{function_name}' no implementada o desconocida."}),
+                    })
+            # Después de procesar todas las tool_calls, volvemos a llamar al LLM
+            # con el historial de mensajes actualizado (que ahora incluye los resultados de las herramientas)
+
+        else: # El LLM no llamó a herramientas, devolvió una respuesta final de texto
+            print(f" <-- LLM devolvió respuesta final de texto.") # Log después de recibir respuesta
+            agent_text_response = response_message.content or "El agente no proporcionó contenido." # Manejar None
+            print(f"--- Invocación de Agente '{agent_name_for_log}' Finalizada ---")
+            return schemas.AgentInvokeResponse(
+                agent_response=agent_text_response,
+                used_system_prompt=actual_system_prompt
+            )
+
+    # Si se excede MAX_TOOL_CALLS_PER_INVOCATION
+    print(f"ERROR: Se excedió el máximo de llamadas a herramientas ({MAX_TOOL_CALLS_PER_INVOCATION}).")
+    # Devolver la última respuesta del asistente, aunque sea una solicitud de herramienta, o un mensaje de error.
+    # Para este caso, devolvemos un error específico.
+    # Opcionalmente, podrías intentar forzar una respuesta final del LLM sin herramientas.
+    raise HTTPException(status_code=400, detail=f"Se excedió el máximo de {MAX_TOOL_CALLS_PER_INVOCATION} llamadas a herramientas. La conversación se ha detenido.")
 
 # --- Endpoint de Invocación de Flujo (AHORA CON BD) ---
 @app.post("/api/v1/flows/{flow_id}/invoke", response_model=schemas.FlowInvokeResponse)
@@ -340,6 +463,22 @@ async def invoke_flow_endpoint( # Renombrado
         log=log_steps
     )
 
+@app.get("/api/v1/tools/available", response_model=List[schemas.AvailableTool])
+async def list_available_tools():
+    """
+    Devuelve una lista de todas las herramientas disponibles en el sistema
+    con sus descripciones y esquemas de parámetros.
+    """
+    # AVAILABLE_TOOLS_SCHEMAS ya tiene el formato correcto que espera Pydantic
+    # si coincide con el schema AvailableTool.
+    # Vamos a asegurar que se parseen correctamente por Pydantic.
+    # Si AVAILABLE_TOOLS_SCHEMAS es una lista de dicts que ya cumplen la estructura,
+    # FastAPI/Pydantic deberían manejarlo.
+    
+    # Simplemente devolvemos la constante que ya tenemos
+    # Pydantic validará si su estructura coincide con List[schemas.AvailableTool]
+    # Si no coincide, levantará un error en el servidor, lo cual es bueno para desarrollo.
+    return AVAILABLE_TOOLS_SCHEMAS
 
 # --- Endpoints de / y /saludo (sin cambios) ---
 @app.get("/")
