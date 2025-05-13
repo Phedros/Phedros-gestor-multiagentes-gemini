@@ -114,7 +114,12 @@ body {
 }
 
 .form-group select {
-  /* Estilos adicionales para el select si es necesario, el navegador puede ser restrictivo */
+  padding: 12px;
+  border-radius: 5px;
+  border: 1px solid #3e3e4f;
+  background-color: #2c2c3d;
+  color: #e0e0e0;
+  font-size: 1rem;
 }
 
 .form-group input[disabled],
