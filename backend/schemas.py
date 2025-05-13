@@ -73,3 +73,15 @@ class ToolDefinition(BaseModel):
 class AvailableTool(BaseModel):
     type: str # Debería ser "function"
     function: ToolDefinition
+
+# --- Esquemas para Actualización de Agentes ---
+class AgentUpdate(AgentBase): # Opcional: puedes crear uno nuevo si los campos varían mucho
+    name: Optional[str] = Field(None, min_length=3, max_length=100)
+    system_prompt: Optional[str] = Field(None, min_length=10)
+    tools_enabled: Optional[List[str]] = Field(None, description="Lista de nombres de herramientas habilitadas para este agente.")
+
+# --- Esquemas para Actualización de Flujos ---
+class FlowUpdate(FlowBase): # Opcional: puedes crear uno nuevo
+    name: Optional[str] = Field(None, min_length=3, max_length=150)
+    description: Optional[str] = Field(None, max_length=255)
+    agent_ids: Optional[List[str]] = Field(None, min_length=1)

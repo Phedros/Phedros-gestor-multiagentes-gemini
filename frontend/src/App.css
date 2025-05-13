@@ -19,18 +19,18 @@ body {
 }
 
 .App-header {
-  background-color: #1f1f2e; /* Un poco más claro que el body, o el mismo que las cards */
+  background-color: #1f1f2e;
   padding: 20px;
-  color: #e0e0e0; /* Texto claro */
+  color: #e0e0e0;
   margin-bottom: 30px;
   border-radius: 8px;
   text-align: center;
-  border: 1px solid #333; /* Borde sutil si se desea */
+  border: 1px solid #333;
 }
 
 .App-header h1 {
   margin-top: 0;
-  color: #61dafb; /* Mantener el acento o cambiar a blanco */
+  color: #61dafb;
 }
 
 /* Grid principal para configurar dos columnas */
@@ -50,18 +50,18 @@ body {
 
 /* Tarjetas genéricas */
 .card {
-  background-color: #1e1e1e; /* Fondo de tarjeta oscuro */
+  background-color: #1e1e1e;
   padding: 25px;
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3); /* Sombra más pronunciada para contraste */
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
   display: flex;
   flex-direction: column;
-  border: 1px solid #2c2c2c; /* Borde sutil para definir la tarjeta */
+  border: 1px solid #2c2c2c;
 }
 
 .card h2 {
   margin-top: 0;
-  color: #61dafb; /* Color de acento para títulos de tarjeta */
+  color: #61dafb;
   border-bottom: 2px solid #61dafb;
   padding-bottom: 10px;
   margin-bottom: 20px;
@@ -84,7 +84,7 @@ body {
 .form-group label {
   margin-bottom: 6px;
   font-weight: bold;
-  color: #b0b0b0; /* Texto de label más suave */
+  color: #b0b0b0;
   font-size: 0.9rem;
 }
 
@@ -93,11 +93,11 @@ body {
 .form-group select {
   padding: 12px;
   border-radius: 5px;
-  border: 1px solid #3e3e4f; /* Borde oscuro */
+  border: 1px solid #3e3e4f;
   font-size: 1rem;
   box-sizing: border-box;
-  background-color: #2c2c3d; /* Fondo de input oscuro */
-  color: #e0e0e0; /* Texto de input claro */
+  background-color: #2c2c3d;
+  color: #e0e0e0;
 }
 
 .form-group textarea {
@@ -110,65 +110,92 @@ body {
 .form-group select:focus {
   border-color: #61dafb;
   outline: none;
-  box-shadow: 0 0 0 3px rgba(97, 218, 251, 0.2); /* Sombra de foco más sutil en oscuro */
-}
-
-.form-group select {
-  padding: 12px;
-  border-radius: 5px;
-  border: 1px solid #3e3e4f;
-  background-color: #2c2c3d;
-  color: #e0e0e0;
-  font-size: 1rem;
+  box-shadow: 0 0 0 3px rgba(97, 218, 251, 0.2);
 }
 
 .form-group input[disabled],
 .form-group textarea[disabled],
 .form-group select[disabled] {
-  background-color: #3a3a4a; /* Fondo deshabilitado más oscuro */
-  color: #777; /* Texto deshabilitado */
+  background-color: #3a3a4a;
+  color: #777;
   cursor: not-allowed;
 }
 
-/* Botones de envío */
+/* Botones */
+button { /* Estilo base para todos los botones que no son submit */
+  padding: 8px 15px;
+  border-radius: 5px;
+  border: 1px solid #555;
+  background-color: #3e3e4f;
+  color: #e0e0e0;
+  cursor: pointer;
+  transition: background-color 0.2s ease-in-out, transform 0.1s ease;
+  font-size: 0.9rem;
+}
+
+button:hover:not(:disabled) {
+  background-color: #4f5e7f;
+  transform: translateY(-1px);
+}
+
+button:disabled {
+  background-color: #2c2c3d;
+  color: #666;
+  cursor: not-allowed;
+  border-color: #444;
+}
+
 button[type="submit"] {
   background-color: #61dafb;
-  color: #121212; /* Texto oscuro sobre botón claro */
+  color: #121212;
   border: none;
   padding: 12px 20px;
   font-size: 1rem;
   font-weight: bold;
-  border-radius: 5px;
-  cursor: pointer;
-  transition: background-color 0.2s ease-in-out, transform 0.1s ease;
-  margin-top: 10px;
+  margin-top: 10px; /* Se mantiene el margen superior para botones de submit principales */
 }
 
 button[type="submit"]:hover:not(:disabled) {
   background-color: #21a1f1;
-  /* color: #101010; */ /* Ajustar si es necesario */
-  transform: translateY(-1px);
 }
 
 button[type="submit"]:disabled {
-  background-color: #4a4a5a; /* Botón deshabilitado más oscuro */
-  color: #888; /* Texto deshabilitado */
-  cursor: not-allowed;
+  background-color: #4a4a5a;
+  color: #888;
 }
+
+/* Estilos específicos para botones de Editar y Eliminar */
+.button-edit {
+  background-color: #306754; /* Verde oscuro */
+  color: #e0e0e0;
+  margin-right: 8px; /* Espacio entre botones */
+}
+.button-edit:hover:not(:disabled) {
+  background-color: #40806b;
+}
+
+.button-delete {
+  background-color: #792727; /* Rojo oscuro */
+  color: #e0e0e0;
+}
+.button-delete:hover:not(:disabled) {
+  background-color: #9c3a3a;
+}
+
 
 /* Mensajes de estado */
 .loading-message {
   margin-top: 15px;
   font-style: italic;
-  color: #999; /* Texto de carga */
+  color: #999;
   text-align: center;
 }
 
 .error-message {
   margin-top: 15px;
-  color: #ffcdd2; /* Texto claro para error */
-  background-color: #5c1111; /* Fondo oscuro para error */
-  border: 1px solid #8d2727; /* Borde oscuro para error */
+  color: #ffcdd2;
+  background-color: #5c1111;
+  border: 1px solid #8d2727;
   padding: 12px;
   border-radius: 5px;
   font-size: 0.9rem;
@@ -176,9 +203,9 @@ button[type="submit"]:disabled {
 
 .success-message {
   margin-top: 15px;
-  color: #c8e6c9; /* Texto claro para éxito */
-  background-color: #1e4620; /* Fondo oscuro para éxito */
-  border: 1px solid #3a743c; /* Borde oscuro para éxito */
+  color: #c8e6c9;
+  background-color: #1e4620;
+  border: 1px solid #3a743c;
   padding: 12px;
   border-radius: 5px;
   font-size: 0.9rem;
@@ -188,16 +215,16 @@ button[type="submit"]:disabled {
 .agent-response-container {
   margin-top: 25px;
   padding: 20px;
-  background-color: #1e1e1e; /* Similar a las cards */
+  background-color: #1e1e1e;
   border-radius: 5px;
   text-align: left;
-  border: 1px solid #2c2c2c; /* Borde sutil */
+  border: 1px solid #2c2c2c;
 }
 
 .agent-response-container h3 {
   margin-top: 0;
-  color: #b0b0b0; /* Texto de título más suave */
-  border-bottom: 1px solid #3e3e4f; /* Borde divisor oscuro */
+  color: #b0b0b0;
+  border-bottom: 1px solid #3e3e4f;
   padding-bottom: 8px;
   margin-bottom: 15px;
 }
@@ -206,11 +233,11 @@ button[type="submit"]:disabled {
   white-space: pre-wrap;
   word-wrap: break-word;
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
-  background-color: #2c2c3d; /* Fondo oscuro para el texto de respuesta */
-  color: #e0e0e0; /* Texto claro */
+  background-color: #2c2c3d;
+  color: #e0e0e0;
   padding: 15px;
   border-radius: 4px;
-  border: 1px solid #3e3e4f; /* Borde oscuro */
+  border: 1px solid #3e3e4f;
   max-height: 400px;
   overflow-y: auto;
   font-size: 0.95rem;
@@ -220,7 +247,7 @@ button[type="submit"]:disabled {
 /* Detalles del prompt usado */
 .used-prompt-details {
   margin-bottom: 15px;
-  background-color: #2a2a3a; /* Fondo ligeramente diferente */
+  background-color: #2a2a3a;
   padding: 5px 10px;
   border-radius: 4px;
   font-size: 0.85rem;
@@ -229,14 +256,14 @@ button[type="submit"]:disabled {
 .used-prompt-details summary {
   cursor: pointer;
   font-weight: bold;
-  color: #9cacff; /* Un color azulado/violáceo claro para el summary */
+  color: #9cacff;
 }
 .system-prompt-display {
   white-space: pre-wrap;
   word-wrap: break-word;
   font-family: 'SFMono-Regular', Consolas, Menlo, monospace;
-  background-color: #1e1e1e; /* Fondo más oscuro para el prompt */
-  color: #c0c0c0; /* Texto del prompt */
+  background-color: #1e1e1e;
+  color: #c0c0c0;
   padding: 8px;
   border-radius: 3px;
   border: 1px solid #333;
@@ -250,7 +277,7 @@ button[type="submit"]:disabled {
 .agent-list-for-reference {
   font-size: 0.85rem;
   margin-top: 8px;
-  background-color: #2a2a3a; /* Fondo oscuro */
+  background-color: #2a2a3a;
   padding: 8px 12px;
   border-radius: 4px;
   border: 1px solid #3a3a4a;
@@ -258,7 +285,7 @@ button[type="submit"]:disabled {
 .agent-list-for-reference summary {
   cursor: pointer;
   font-weight: normal;
-  color: #61dafb; /* Color de acento */
+  color: #61dafb;
 }
 .agent-list-for-reference ul {
   list-style-type: none;
@@ -269,11 +296,11 @@ button[type="submit"]:disabled {
 }
 .agent-list-for-reference li {
   padding: 2px 0;
-  color: #b0b0b0; /* Texto de items de lista */
+  color: #b0b0b0;
 }
 .agent-list-for-reference code {
-  background-color: #3e3e4f; /* Fondo para el código */
-  color: #e0e0e0; /* Texto del código */
+  background-color: #3e3e4f;
+  color: #e0e0e0;
   padding: 1px 4px;
   border-radius: 3px;
   font-size: 0.9em;
@@ -283,7 +310,7 @@ button[type="submit"]:disabled {
 .flow-response-container {
   margin-top: 25px;
   padding: 20px;
-  background-color: #1e1e1e; /* Similar a las cards */
+  background-color: #1e1e1e;
   border-radius: 5px;
   text-align: left;
   border: 1px solid #2c2c2c;
@@ -308,25 +335,25 @@ button[type="submit"]:disabled {
   gap: 10px;
 }
 .flow-log-step {
-  border: 1px solid #3e3e4f; /* Borde del paso */
+  border: 1px solid #3e3e4f;
   border-radius: 4px;
-  background-color: #2c2c3d; /* Fondo del paso */
+  background-color: #2c2c3d;
 }
 .flow-log-step summary {
   cursor: pointer;
   padding: 10px;
   font-weight: bold;
-  background-color: #3a3a4a; /* Fondo del summary */
-  color: #e0e0e0; /* Texto del summary */
+  background-color: #3a3a4a;
+  color: #e0e0e0;
   border-radius: 4px 4px 0 0;
 }
 .flow-log-step[open] summary {
-  border-bottom: 1px solid #4a4a5a; /* Borde inferior cuando está abierto */
+  border-bottom: 1px solid #4a4a5a;
 }
 .log-step-content {
   padding: 10px;
   font-size: 0.9rem;
-  color: #c0c0c0; /* Texto del contenido del log */
+  color: #c0c0c0;
 }
 .log-step-content p {
   margin: 0 0 5px;
@@ -335,8 +362,8 @@ button[type="submit"]:disabled {
 .log-step-content pre.system-prompt-display {
   white-space: pre-wrap;
   word-wrap: break-word;
-  background-color: #1e1e1e; /* Fondo del display de prompt */
-  color: #d0d0d0; /* Texto del display de prompt */
+  background-color: #1e1e1e;
+  color: #d0d0d0;
   padding: 8px;
   border-radius: 3px;
   border: 1px solid #333;
@@ -358,12 +385,12 @@ button[type="submit"]:disabled {
 .tools-selection-list {
   display: flex;
   flex-direction: column;
-  gap: 8px; /* Espacio entre cada opción de herramienta */
+  gap: 8px;
   padding: 10px;
-  border: 1px solid #3e3e4f; /* Borde oscuro */
+  border: 1px solid #3e3e4f;
   border-radius: 5px;
-  background-color: #2c2c3d; /* Fondo oscuro */
-  max-height: 200px; /* Para que no se haga muy largo si hay muchas herramientas */
+  background-color: #2c2c3d;
+  max-height: 200px;
   overflow-y: auto;
 }
 
@@ -374,60 +401,132 @@ button[type="submit"]:disabled {
 
 .tool-checkbox-item input[type="checkbox"] {
   margin-right: 10px;
-  width: 16px; /* Tamaño del checkbox */
+  width: 16px;
   height: 16px;
   cursor: pointer;
-  /* Estilizar checkboxes puede ser complejo y requerir pseudo-elementos o SVGs para un control total en modo oscuro */
-  /* Por ahora, el navegador podría aplicar un estilo por defecto que contraste o no */
-  /* filter: invert(1) hue-rotate(180deg); Considerar esto si los checkboxes por defecto no se ven bien */
+  accent-color: #61dafb; /* Intenta dar color al checkbox en navegadores modernos */
 }
+/* Si accent-color no funciona o quieres más control, necesitarías un checkbox personalizado */
+
 
 .tool-checkbox-item label {
   font-weight: normal;
   font-size: 0.95rem;
-  color: #b0b0b0; /* Texto de label claro */
+  color: #b0b0b0;
   cursor: pointer;
 }
 
 .tool-checkbox-item label:hover {
-  color: #61dafb; /* Color al pasar el mouse para indicar interactividad */
+  color: #61dafb;
 }
 
-/* Opcional: para mostrar la descripción de la herramienta si la añades al JSX */
 .tool-description-small {
   font-size: 0.8rem;
-  color: #888; /* Texto de descripción más oscuro/suave */
+  color: #888;
   margin-left: 26px; 
   margin-top: -5px; 
 }
 
-/* Mejorar el estilo de la barra de scroll para navegadores WebKit (Chrome, Safari, Edge nuevo) */
+/* Mejorar el estilo de la barra de scroll */
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
-
 ::-webkit-scrollbar-track {
-  background: #2c2c3d; /* Fondo de la pista de la barra de scroll */
+  background: #2c2c3d;
   border-radius: 5px;
 }
-
 ::-webkit-scrollbar-thumb {
-  background: #555; /* Color del "pulgar" de la barra de scroll */
+  background: #555;
   border-radius: 5px;
 }
-
 ::-webkit-scrollbar-thumb:hover {
-  background: #777; /* Color del "pulgar" al pasar el mouse */
+  background: #777;
+}
+html { /* Para Firefox */
+  scrollbar-width: thin;
+  scrollbar-color: #555 #2c2c3d;
 }
 
-/* Para Firefox */
-/* Firefox soporta scrollbar-color y scrollbar-width de forma más directa */
-/* Puedes añadir esto si necesitas personalizar para Firefox específicamente,
-   pero a menudo los defaults de Firefox se adaptan mejor a los temas oscuros
-   o puedes usar:
-   html {
-     scrollbar-width: thin;
-     scrollbar-color: #555 #2c2c3d;
-   }
-*/
+/* --- NUEVOS ESTILOS PARA CRUD --- */
+
+/* Listas de entidades (agentes, flujos) */
+.entity-list {
+  list-style-type: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px; /* Espacio entre items */
+}
+
+.entity-list-item {
+  display: flex;
+  justify-content: space-between; /* Alinea el nombre a la izquierda y los botones a la derecha */
+  align-items: center;
+  padding: 10px;
+  background-color: #2c2c3d; /* Un poco más claro que la card para destacar */
+  border-radius: 4px;
+  border: 1px solid #3e3e4f;
+}
+
+.entity-list-item span { /* Para el nombre y el ID */
+  flex-grow: 1; /* Permite que el texto ocupe el espacio disponible */
+  margin-right: 15px; /* Espacio antes de los botones */
+  word-break: break-word; /* Para nombres largos */
+}
+
+.entity-list-item div { /* Contenedor de botones */
+  display: flex;
+  gap: 8px; /* Espacio entre botones de editar/eliminar */
+}
+
+
+/* Estilos para los Modales de Edición */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7); /* Fondo oscuro semitransparente */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000; /* Asegura que esté por encima de otros contenidos */
+}
+
+.modal-content {
+  background-color: #1e1e1e; /* Mismo color que las .card */
+  padding: 30px;
+  border-radius: 8px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+  width: 90%;
+  max-width: 600px; /* Ancho máximo del modal */
+  border: 1px solid #333;
+  max-height: 90vh; /* Altura máxima, permite scroll interno */
+  overflow-y: auto; /* Scroll si el contenido es muy largo */
+}
+
+.modal-content h2 {
+  margin-top: 0;
+  color: #61dafb;
+  border-bottom: 1px solid #444;
+  padding-bottom: 15px;
+  margin-bottom: 20px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end; /* Alinea botones a la derecha */
+  gap: 15px; /* Espacio entre botones de acción del modal */
+  margin-top: 25px;
+}
+
+.modal-actions button {
+  padding: 10px 20px;
+}
+
+/* Ajuste para que los botones de submit en modales no tengan tanto margen superior */
+.modal-actions button[type="submit"] {
+  margin-top: 0;
+}
